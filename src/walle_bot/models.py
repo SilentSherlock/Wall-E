@@ -18,3 +18,4 @@ class BotSettings:
     whitelist_user_ids: set[int]
     rules: ModerationRules
     env_file: Path
+    sqlite_db_path: Path

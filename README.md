@@ -17,7 +17,7 @@ Python Telegram group moderation bot with configurable anti-ad rules.
 - `src/walle_bot/bot.py`: app wiring and handler registration
 - `src/walle_bot/config.py`: YAML + env config loader
 - `src/walle_bot/services/moderation.py`: moderation actions
-- `src/walle_bot/services/state.py`: duplicate detection and in-memory violation state
+- `src/walle_bot/services/state.py`: duplicate detection and SQLite-backed violation state
 - `config/settings.yaml`: non-sensitive policy config
 - `.env` (local): token/chat/user sensitive data
 - `tests/`: pytest test suite
@@ -45,6 +45,7 @@ WHITELIST_USER_IDS=12345678
 ```
 
 4. Adjust moderation values in `config/settings.yaml` if needed.
+5. Optional: change `storage.sqlite_db_path` (default: `data/walle.db`).
 
 ## Setup (Ubuntu / Linux)
 
@@ -76,6 +77,7 @@ WHITELIST_USER_IDS=12345678
 ```
 
 5. Adjust moderation values in `config/settings.yaml` if needed.
+6. Optional: change `storage.sqlite_db_path` (default: `data/walle.db`).
 
 ## Run
 

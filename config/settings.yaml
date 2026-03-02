@@ -8,3 +8,6 @@ moderation:
   duplicate_window_seconds: 10
   mute_duration_seconds: 3600
   max_violations: 3
+
+storage:
+  sqlite_db_path: "data/walle.db"

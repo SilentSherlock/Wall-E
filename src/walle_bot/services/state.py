@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
 import re
+import sqlite3
+import threading
 
 URL_PATTERN = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class MessageEvent:
-    chat_id: int
-    user_id: int
-    message_id: int
-    fingerprint: str
-    links: frozenset[str]
-    created_at: datetime
 
 
 @dataclass(frozen=True)
@@ -25,11 +18,56 @@ class MatchResult:
 
 
 class ModerationState:
-    """In-memory event and violation store used by the moderation engine."""
+    """SQLite-backed event and violation store used by the moderation engine."""
 
-    def __init__(self) -> None:
-        self._events: dict[tuple[int, int], deque[MessageEvent]] = defaultdict(deque)
-        self._violations: dict[tuple[int, int], int] = defaultdict(int)
+    def __init__(self, db_path: str | Path = "data/walle.db") -> None:
+        self.db_path = Path(db_path)
+        if self.db_path != Path(":memory:"):
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        self._lock = threading.Lock()
+        self._conn = sqlite3.connect(
+            str(self.db_path),
+            check_same_thread=False,
+        )
+        self._conn.row_factory = sqlite3.Row
+        self._initialize_schema()
+
+    def close(self) -> None:
+        with self._lock:
+            self._conn.close()
+
+    def _initialize_schema(self) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS message_events (
+                    chat_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    message_id INTEGER NOT NULL,
+                    fingerprint TEXT NOT NULL,
+                    links_json TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    PRIMARY KEY (chat_id, user_id, message_id)
+                )
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_message_events_lookup
+                ON message_events (chat_id, user_id, created_at)
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS violations (
+                    chat_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    count INTEGER NOT NULL,
+                    PRIMARY KEY (chat_id, user_id)
+                )
+                """
+            )
 
     @staticmethod
     def fingerprint(text: str) -> str:
@@ -56,42 +94,83 @@ class ModerationState:
 
         fingerprint = self.fingerprint(text)
         links = self.extract_links(text)
-        key = (chat_id, user_id)
-        history = self._events[key]
-        lower_bound = now - timedelta(seconds=window_seconds)
-
-        while history and history[0].created_at < lower_bound:
-            history.popleft()
+        now_epoch = int(now.timestamp())
+        lower_bound_epoch = int((now - timedelta(seconds=window_seconds)).timestamp())
 
         matched_ids: list[int] = []
         reason: str | None = None
-        for event in history:
-            if fingerprint and event.fingerprint == fingerprint:
-                matched_ids.append(event.message_id)
-                reason = "duplicate_content"
-            elif links and event.links.intersection(links):
-                matched_ids.append(event.message_id)
-                reason = "duplicate_link"
 
-        history.append(
-            MessageEvent(
-                chat_id=chat_id,
-                user_id=user_id,
-                message_id=message_id,
-                fingerprint=fingerprint,
-                links=links,
-                created_at=now,
+        with self._lock, self._conn:
+            self._conn.execute(
+                """
+                DELETE FROM message_events
+                WHERE chat_id = ? AND user_id = ? AND created_at < ?
+                """,
+                (chat_id, user_id, lower_bound_epoch),
             )
-        )
+
+            history_rows = self._conn.execute(
+                """
+                SELECT message_id, fingerprint, links_json
+                FROM message_events
+                WHERE chat_id = ? AND user_id = ?
+                ORDER BY created_at ASC
+                """,
+                (chat_id, user_id),
+            ).fetchall()
+
+            for row in history_rows:
+                stored_links = set(json.loads(row["links_json"]))
+                if fingerprint and row["fingerprint"] == fingerprint:
+                    matched_ids.append(int(row["message_id"]))
+                    reason = "duplicate_content"
+                elif links and stored_links.intersection(links):
+                    matched_ids.append(int(row["message_id"]))
+                    reason = "duplicate_link"
+
+            self._conn.execute(
+                """
+                INSERT OR REPLACE INTO message_events (
+                    chat_id, user_id, message_id, fingerprint, links_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    chat_id,
+                    user_id,
+                    message_id,
+                    fingerprint,
+                    json.dumps(sorted(links)),
+                    now_epoch,
+                ),
+            )
 
         if not matched_ids:
             return None
         return MatchResult(matched_message_ids=tuple(matched_ids), reason=reason or "duplicate_content")
 
     def add_violation(self, chat_id: int, user_id: int) -> int:
-        key = (chat_id, user_id)
-        self._violations[key] += 1
-        return self._violations[key]
+        with self._lock, self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO violations (chat_id, user_id, count)
+                VALUES (?, ?, 1)
+                ON CONFLICT(chat_id, user_id)
+                DO UPDATE SET count = count + 1
+                """,
+                (chat_id, user_id),
+            )
+
+            row = self._conn.execute(
+                "SELECT count FROM violations WHERE chat_id = ? AND user_id = ?",
+                (chat_id, user_id),
+            ).fetchone()
+
+        return int(row["count"]) if row is not None else 0
 
     def get_violation_count(self, chat_id: int, user_id: int) -> int:
-        return self._violations[(chat_id, user_id)]
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT count FROM violations WHERE chat_id = ? AND user_id = ?",
+                (chat_id, user_id),
+            ).fetchone()
+        return int(row["count"]) if row is not None else 0

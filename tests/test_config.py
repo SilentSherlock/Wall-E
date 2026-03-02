@@ -35,6 +35,7 @@ def test_load_settings_reads_env_values(tmp_path: Path, monkeypatch: pytest.Monk
     assert settings.bot_token == "abc"
     assert settings.monitored_chat_ids == {1, 2}
     assert settings.whitelist_user_ids == {3, 4}
+    assert settings.sqlite_db_path == (tmp_path / "data" / "walle.db").resolve()
 
 
 def test_load_settings_requires_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

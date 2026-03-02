@@ -47,13 +47,14 @@ def _read_yaml(config_path: Path) -> dict[str, Any]:
 def load_settings(config_path: str | Path = "config/settings.yaml") -> BotSettings:
     cfg_path = Path(config_path)
     data = _read_yaml(cfg_path)
+    project_root = cfg_path.parent.parent
 
     env_cfg = data.get("env", {})
     if not isinstance(env_cfg, dict):
         raise ConfigError("env section must be a mapping")
 
     env_file_name = env_cfg.get("file", ".env")
-    env_file = (cfg_path.parent.parent / env_file_name).resolve()
+    env_file = (project_root / env_file_name).resolve()
     load_dotenv(env_file)
 
     bot_token_key = str(env_cfg.get("bot_token_key", "BOT_TOKEN"))
@@ -70,6 +71,12 @@ def load_settings(config_path: str | Path = "config/settings.yaml") -> BotSettin
     moderation_cfg = data.get("moderation", {})
     if not isinstance(moderation_cfg, dict):
         raise ConfigError("moderation section must be a mapping")
+
+    storage_cfg = data.get("storage", {})
+    if not isinstance(storage_cfg, dict):
+        raise ConfigError("storage section must be a mapping")
+
+    sqlite_db_path = (project_root / str(storage_cfg.get("sqlite_db_path", "data/walle.db"))).resolve()
 
     rules = ModerationRules(
         duplicate_window_seconds=int(moderation_cfg.get("duplicate_window_seconds", 10)),
@@ -90,4 +97,5 @@ def load_settings(config_path: str | Path = "config/settings.yaml") -> BotSettin
         whitelist_user_ids=whitelist_user_ids,
         rules=rules,
         env_file=env_file,
+        sqlite_db_path=sqlite_db_path,
     )
