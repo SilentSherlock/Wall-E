@@ -117,7 +117,8 @@ WHITELIST_USER_IDS=12345678,87654321
 
 ## 9. 管理群组与整点报时
 
-- 在群组中触发 `/start` 时，会把当前 `chat_id` 注册到 `managed_chats` 表；
-- 机器人启动时，会向 `managed_chats` 里的所有群发送“Wall-E机器人已启动 + 当前时间”通知；
+- 在群组中触发 `/start` 时，只有 owner/admin 可注册当前 `chat_id` 到 `managed_chats` 表；
+- 机器人启动时，会向 `managed_chats` 里的所有群发送“Wall-E机器人已重启 + 当前时间”通知；
 - 机器人每隔 1 小时遍历 `managed_chats`，向每个群发送当前 UTC 时间；
+- 支持 `/list` 命令查看全部命令与权限；
 - 关键实现：`src/walle_bot/handlers/commands.py`、`src/walle_bot/services/scheduler.py`。

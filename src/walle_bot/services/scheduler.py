@@ -16,7 +16,7 @@ def _build_time_message(now: datetime) -> str:
 
 
 def _build_startup_message(now: datetime) -> str:
-    return f"Wall-E机器人🤖已启动于时间：{now.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    return f"Wall-E机器人已重启，当前时间：{now.strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
 
 async def hourly_time_report(context: ContextTypes.DEFAULT_TYPE) -> None:

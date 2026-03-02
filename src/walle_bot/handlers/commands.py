@@ -6,14 +6,31 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 
+def _build_list_text() -> str:
+    return (
+        "Available commands:\n"
+        "/start - Register current group for management (group owner/admin only)\n"
+        "/list - Show command list and permissions (all users)\n"
+        "/whoami - Show your user info (all users)"
+    )
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     chat = update.effective_chat
+    user = update.effective_user
     if message is None or chat is None:
         return
 
     if chat.type not in {"group", "supergroup"}:
         await message.reply_text("Bot is running. Add me to a group and use /start there.")
+        return
+
+    if user is None:
+        return
+    member = await context.bot.get_chat_member(chat_id=chat.id, user_id=user.id)
+    if member.status not in {"administrator", "creator"}:
+        # Per requirement: non-admin users invoking /start in group should be ignored.
         return
 
     state = context.application.bot_data["moderation_service"].state
@@ -30,6 +47,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await message.reply_text(
         f"This group is already registered.\nChat ID: {chat.id}\nChecked at: {current_time}"
     )
+
+
+async def list_commands(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    if message is None:
+        return
+    await message.reply_text(_build_list_text())
 
 
 async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
