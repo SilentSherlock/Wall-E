@@ -9,6 +9,8 @@ Python Telegram group moderation bot with configurable anti-ad rules.
 - Detect ad-like behavior when the same user sends duplicate content or links in a short time window
 - On violation: delete duplicate messages, warn user, mute for configurable duration
 - Auto-kick user after configurable violation count
+- `/start` in group registers that group into managed group list (stored in SQLite)
+- Hourly scheduler sends current UTC time report to all managed groups
 - `/whoami` command returns caller identity info
 
 ## Project structure

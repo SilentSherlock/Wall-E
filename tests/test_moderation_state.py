@@ -112,3 +112,17 @@ def test_state_persists_history_and_violations(tmp_path: Path) -> None:
     assert match.reason == "duplicate_link"
     assert second_state.get_violation_count(chat_id=5, user_id=9) == 1
     second_state.close()
+
+
+def test_state_persists_managed_chats(tmp_path: Path) -> None:
+    db_path = tmp_path / "managed.db"
+
+    first_state = ModerationState(db_path)
+    assert first_state.add_managed_chat(chat_id=-1001, title="Group A")
+    assert first_state.add_managed_chat(chat_id=-1002, title="Group B")
+    assert not first_state.add_managed_chat(chat_id=-1001, title="Group A Updated")
+    first_state.close()
+
+    second_state = ModerationState(db_path)
+    assert second_state.get_managed_chat_ids() == [-1002, -1001]
+    second_state.close()

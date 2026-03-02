@@ -68,6 +68,15 @@ class ModerationState:
                 )
                 """
             )
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS managed_chats (
+                    chat_id INTEGER PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                )
+                """
+            )
 
     @staticmethod
     def fingerprint(text: str) -> str:
@@ -174,3 +183,31 @@ class ModerationState:
                 (chat_id, user_id),
             ).fetchone()
         return int(row["count"]) if row is not None else 0
+
+    def add_managed_chat(self, chat_id: int, title: str) -> bool:
+        now_epoch = int(datetime.now(tz=timezone.utc).timestamp())
+        with self._lock, self._conn:
+            inserted = self._conn.execute(
+                """
+                INSERT OR IGNORE INTO managed_chats (chat_id, title, created_at)
+                VALUES (?, ?, ?)
+                """,
+                (chat_id, title, now_epoch),
+            ).rowcount
+
+            self._conn.execute(
+                """
+                UPDATE managed_chats
+                SET title = ?
+                WHERE chat_id = ?
+                """,
+                (title, chat_id),
+            )
+        return bool(inserted)
+
+    def get_managed_chat_ids(self) -> list[int]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT chat_id FROM managed_chats ORDER BY chat_id ASC"
+            ).fetchall()
+        return [int(row["chat_id"]) for row in rows]

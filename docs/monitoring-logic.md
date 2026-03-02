@@ -114,3 +114,9 @@ WHITELIST_USER_IDS=12345678,87654321
 - 监控主逻辑：`src/walle_bot/services/moderation.py`
 - 重复检测与违规计数：`src/walle_bot/services/state.py`
 - 配置加载：`src/walle_bot/config.py`
+
+## 9. 管理群组与整点报时
+
+- 在群组中触发 `/start` 时，会把当前 `chat_id` 注册到 `managed_chats` 表；
+- 机器人每隔 1 小时遍历 `managed_chats`，向每个群发送当前 UTC 时间；
+- 关键实现：`src/walle_bot/handlers/commands.py`、`src/walle_bot/services/scheduler.py`。

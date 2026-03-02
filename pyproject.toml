@@ -9,6 +9,7 @@ description = "Telegram moderation bot"
 requires-python = ">=3.11"
 dependencies = [
     "python-telegram-bot==22.6",
+    "APScheduler==3.11.0",
     "PyYAML==6.0.2",
     "python-dotenv==1.1.1",
 ]

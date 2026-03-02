@@ -5,8 +5,9 @@ import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from .config import load_settings
-from .handlers.commands import whoami
+from .handlers.commands import start, whoami
 from .services.moderation import ModerationService
+from .services.scheduler import register_hourly_job
 from .services.state import ModerationState
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ def create_application(config_path: str = "config/settings.yaml") -> Application
     application = Application.builder().token(settings.bot_token).post_shutdown(_on_shutdown).build()
     application.bot_data["moderation_service"] = ModerationService(settings=settings, state=state)
 
+    application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("whoami", whoami))
     application.add_handler(
         MessageHandler(
@@ -42,6 +44,7 @@ def create_application(config_path: str = "config/settings.yaml") -> Application
         sorted(settings.monitored_chat_ids),
         len(settings.whitelist_user_ids),
     )
+    register_hourly_job(application)
     return application
 
 
