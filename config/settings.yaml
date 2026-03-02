@@ -1,0 +1,10 @@
+env:
+  file: ".env"
+  bot_token_key: "BOT_TOKEN"
+  monitored_chat_ids_key: "MONITORED_CHAT_IDS"
+  whitelist_user_ids_key: "WHITELIST_USER_IDS"
+
+moderation:
+  duplicate_window_seconds: 10
+  mute_duration_seconds: 3600
+  max_violations: 3
