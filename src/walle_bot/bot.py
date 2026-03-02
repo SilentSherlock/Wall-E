@@ -7,7 +7,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from .config import load_settings
 from .handlers.commands import start, whoami
 from .services.moderation import ModerationService
-from .services.scheduler import register_hourly_job
+from .services.scheduler import register_hourly_job, send_startup_notice
 from .services.state import ModerationState
 
 logger = logging.getLogger(__name__)
@@ -23,11 +23,21 @@ async def _on_shutdown(application: Application) -> None:
     service.state.close()
 
 
+async def _on_startup(application: Application) -> None:
+    await send_startup_notice(application)
+
+
 def create_application(config_path: str = "config/settings.yaml") -> Application:
     settings = load_settings(config_path)
     state = ModerationState(db_path=settings.sqlite_db_path)
 
-    application = Application.builder().token(settings.bot_token).post_shutdown(_on_shutdown).build()
+    application = (
+        Application.builder()
+        .token(settings.bot_token)
+        .post_init(_on_startup)
+        .post_shutdown(_on_shutdown)
+        .build()
+    )
     application.bot_data["moderation_service"] = ModerationService(settings=settings, state=state)
 
     application.add_handler(CommandHandler("start", start))
