@@ -6,6 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from .config import load_settings
 from .handlers.commands import list_commands, start, whoami
+from .logging_setup import configure_logging
 from .services.moderation import ModerationService
 from .services.scheduler import register_hourly_job, send_startup_notice
 from .services.state import ModerationState
@@ -60,8 +61,6 @@ def create_application(config_path: str = "config/settings.yaml") -> Application
 
 
 def run(config_path: str = "config/settings.yaml") -> None:
-    logging.basicConfig(
-        format="%(asctime)s %(name)s [%(levelname)s] %(message)s", level=logging.INFO
-    )
+    configure_logging()
     application = create_application(config_path)
     application.run_polling(allowed_updates=["message"])

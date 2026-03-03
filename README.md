@@ -11,7 +11,7 @@ Python Telegram group moderation bot with configurable anti-ad rules.
 - Auto-kick user after configurable violation count
 - `/start` in group registers that group into managed group list (stored in SQLite, owner/admin only)
 - `/list` shows all commands and required permissions
-- Hourly scheduler sends current UTC time report to all managed groups
+- Hourly scheduler sends current Beijing time report to all managed groups
 - `/whoami` command returns caller identity info
 
 ## Project structure
@@ -95,6 +95,11 @@ python main.py --config config/settings.yaml
 ```bash
 python3 main.py --config config/settings.yaml
 ```
+
+## Logs
+
+- Runtime logs are written under `logs/` in the project root.
+- Logs rotate daily (`walle.log.YYYY-MM-DD`) and only keep warning/error level entries.
 
 ## Test
 
