@@ -126,3 +126,15 @@ def test_state_persists_managed_chats(tmp_path: Path) -> None:
     second_state = ModerationState(db_path)
     assert second_state.get_managed_chat_ids() == [-1002, -1001]
     second_state.close()
+
+
+def test_state_can_clear_violations_by_username(tmp_path: Path) -> None:
+    state = ModerationState(tmp_path / "state.db")
+    state.upsert_user_profile(chat_id=1, user_id=7, username="target_user", full_name="Target User")
+    assert state.get_user_id_by_username(chat_id=1, username="@target_user") == 7
+    assert state.add_violation(chat_id=1, user_id=7) == 1
+    assert state.get_violation_count(chat_id=1, user_id=7) == 1
+
+    state.clear_violations(chat_id=1, user_id=7)
+    assert state.get_violation_count(chat_id=1, user_id=7) == 0
+    state.close()

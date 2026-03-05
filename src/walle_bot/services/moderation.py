@@ -36,12 +36,20 @@ class ModerationService:
         return True
 
     async def process_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not self.should_process(update):
-            return
-
         message = update.effective_message
         chat = update.effective_chat
         user = update.effective_user
+        if message is not None and chat is not None and user is not None and chat.type in {"group", "supergroup"}:
+            self.state.upsert_user_profile(
+                chat_id=chat.id,
+                user_id=user.id,
+                username=user.username or "",
+                full_name=user.full_name or str(user.id),
+            )
+
+        if not self.should_process(update):
+            return
+
         assert message is not None and chat is not None and user is not None
 
         content = message.text or message.caption or ""

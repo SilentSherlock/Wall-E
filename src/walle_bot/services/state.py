@@ -77,6 +77,24 @@ class ModerationState:
                 )
                 """
             )
+            self._conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS known_users (
+                    chat_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    full_name TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY (chat_id, user_id)
+                )
+                """
+            )
+            self._conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_known_users_username
+                ON known_users (chat_id, username)
+                """
+            )
 
     @staticmethod
     def fingerprint(text: str) -> str:
@@ -184,6 +202,49 @@ class ModerationState:
                 (chat_id, user_id),
             ).fetchone()
         return int(row["count"]) if row is not None else 0
+
+    def clear_violations(self, chat_id: int, user_id: int) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                "DELETE FROM violations WHERE chat_id = ? AND user_id = ?",
+                (chat_id, user_id),
+            )
+
+    def upsert_user_profile(self, chat_id: int, user_id: int, username: str, full_name: str) -> None:
+        normalized_username = username.strip().lower().lstrip("@")
+        if not normalized_username:
+            return
+        now_epoch = int(datetime.now(tz=timezone.utc).timestamp())
+        with self._lock, self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO known_users (chat_id, user_id, username, full_name, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(chat_id, user_id)
+                DO UPDATE SET
+                    username = excluded.username,
+                    full_name = excluded.full_name,
+                    updated_at = excluded.updated_at
+                """,
+                (chat_id, user_id, normalized_username, full_name, now_epoch),
+            )
+
+    def get_user_id_by_username(self, chat_id: int, username: str) -> int | None:
+        normalized_username = username.strip().lower().lstrip("@")
+        if not normalized_username:
+            return None
+        with self._lock:
+            row = self._conn.execute(
+                """
+                SELECT user_id
+                FROM known_users
+                WHERE chat_id = ? AND username = ?
+                ORDER BY updated_at DESC
+                LIMIT 1
+                """,
+                (chat_id, normalized_username),
+            ).fetchone()
+        return int(row["user_id"]) if row is not None else None
 
     def add_managed_chat(self, chat_id: int, title: str) -> bool:
         now_epoch = int(datetime.now(tz=timezone.utc).timestamp())
