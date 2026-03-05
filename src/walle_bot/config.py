@@ -79,17 +79,25 @@ def load_settings(config_path: str | Path = "config/settings.yaml") -> BotSettin
     sqlite_db_path = (project_root / str(storage_cfg.get("sqlite_db_path", "data/walle.db"))).resolve()
 
     rules = ModerationRules(
-        duplicate_window_seconds=int(moderation_cfg.get("duplicate_window_seconds", 10)),
+        duplicate_window_seconds=int(moderation_cfg.get("duplicate_window_seconds", 600)),
+        duplicate_trigger_count=int(moderation_cfg.get("duplicate_trigger_count", 2)),
         mute_duration_seconds=int(moderation_cfg.get("mute_duration_seconds", 3600)),
+        mute_on_violations=int(moderation_cfg.get("mute_on_violations", 2)),
         max_violations=int(moderation_cfg.get("max_violations", 3)),
     )
 
     if rules.duplicate_window_seconds <= 0:
         raise ConfigError("duplicate_window_seconds must be > 0")
+    if rules.duplicate_trigger_count < 2:
+        raise ConfigError("duplicate_trigger_count must be >= 2")
     if rules.mute_duration_seconds <= 0:
         raise ConfigError("mute_duration_seconds must be > 0")
+    if rules.mute_on_violations <= 0:
+        raise ConfigError("mute_on_violations must be > 0")
     if rules.max_violations <= 0:
         raise ConfigError("max_violations must be > 0")
+    if rules.max_violations < rules.mute_on_violations:
+        raise ConfigError("max_violations must be >= mute_on_violations")
 
     return BotSettings(
         bot_token=bot_token,

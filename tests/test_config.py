@@ -20,7 +20,9 @@ def test_load_settings_reads_env_values(tmp_path: Path, monkeypatch: pytest.Monk
           file: ".env.test"
         moderation:
           duplicate_window_seconds: 10
+          duplicate_trigger_count: 2
           mute_duration_seconds: 3600
+          mute_on_violations: 2
           max_violations: 3
         """,
         encoding="utf-8",
@@ -35,6 +37,9 @@ def test_load_settings_reads_env_values(tmp_path: Path, monkeypatch: pytest.Monk
     assert settings.bot_token == "abc"
     assert settings.monitored_chat_ids == {1, 2}
     assert settings.whitelist_user_ids == {3, 4}
+    assert settings.rules.duplicate_window_seconds == 10
+    assert settings.rules.duplicate_trigger_count == 2
+    assert settings.rules.mute_on_violations == 2
     assert settings.sqlite_db_path == (tmp_path / "data" / "walle.db").resolve()
 
 

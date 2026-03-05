@@ -5,8 +5,10 @@ env:
   whitelist_user_ids_key: "WHITELIST_USER_IDS"
 
 moderation:
-  duplicate_window_seconds: 10
+  duplicate_window_seconds: 600
+  duplicate_trigger_count: 2
   mute_duration_seconds: 3600
+  mute_on_violations: 2
   max_violations: 3
 
 storage:

@@ -97,6 +97,7 @@ class ModerationState:
         text: str,
         now: datetime,
         window_seconds: int,
+        duplicate_trigger_count: int = 2,
     ) -> MatchResult | None:
         if now.tzinfo is None:
             now = now.replace(tzinfo=timezone.utc)
@@ -153,7 +154,7 @@ class ModerationState:
                 ),
             )
 
-        if not matched_ids:
+        if len(matched_ids) + 1 < duplicate_trigger_count:
             return None
         return MatchResult(matched_message_ids=tuple(matched_ids), reason=reason or "duplicate_content")
 

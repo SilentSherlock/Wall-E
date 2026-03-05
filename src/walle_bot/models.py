@@ -7,7 +7,9 @@ from pathlib import Path
 @dataclass(frozen=True)
 class ModerationRules:
     duplicate_window_seconds: int
+    duplicate_trigger_count: int
     mute_duration_seconds: int
+    mute_on_violations: int
     max_violations: int
 
 

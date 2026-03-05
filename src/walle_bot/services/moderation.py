@@ -55,6 +55,7 @@ class ModerationService:
             text=content,
             now=message.date.astimezone(timezone.utc),
             window_seconds=self.settings.rules.duplicate_window_seconds,
+            duplicate_trigger_count=self.settings.rules.duplicate_trigger_count,
         )
 
         if match is None:
@@ -98,6 +99,17 @@ class ModerationService:
             )
             return
 
+        reason_text = "duplicate message" if reason == "duplicate_content" else "duplicate link"
+        if violation_count < self.settings.rules.mute_on_violations:
+            await context.bot.send_message(
+                chat_id=message.chat_id,
+                text=(
+                    f"Warning to {full_name}: {reason_text} detected. "
+                    f"Violation {violation_count}/{self.settings.rules.max_violations}."
+                ),
+            )
+            return
+
         until_date = datetime.now(tz=timezone.utc) + timedelta(
             seconds=self.settings.rules.mute_duration_seconds
         )
@@ -108,7 +120,6 @@ class ModerationService:
             until_date=until_date,
         )
 
-        reason_text = "duplicate message" if reason == "duplicate_content" else "duplicate link"
         await context.bot.send_message(
             chat_id=message.chat_id,
             text=(
