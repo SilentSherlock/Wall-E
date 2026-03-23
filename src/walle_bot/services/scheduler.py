@@ -17,23 +17,30 @@ except ZoneInfoNotFoundError:
 
 
 def _build_time_message(now: datetime) -> str:
-    return f"每小时播报：当前北京时间 {now.strftime('%Y-%m-%d %H:%M:%S')}。"
+    return f"每8小时播报：当前北京时间 {now.strftime('%Y-%m-%d %H:%M:%S')}。"
 
 
 def _build_startup_message(now: datetime) -> str:
     return f"Wall-E机器人已重启，当前北京时间：{now.strftime('%Y-%m-%d %H:%M:%S')}"
 
 
-def _seconds_until_next_hour(now: datetime) -> int:
-    next_hour = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-    return max(1, int((next_hour - now).total_seconds()))
+def _seconds_until_next_eight_hour_mark(now: datetime) -> int:
+    current_block_hour = (now.hour // 8) * 8
+    current_block_start = now.replace(
+        hour=current_block_hour,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    next_block_start = current_block_start + timedelta(hours=8)
+    return max(1, int((next_block_start - now).total_seconds()))
 
 
-async def hourly_time_report(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def eight_hour_time_report(context: ContextTypes.DEFAULT_TYPE) -> None:
     service: ModerationService = context.application.bot_data["moderation_service"]
     managed_chat_ids = service.state.get_managed_chat_ids()
     if not managed_chat_ids:
-        logger.warning("No managed chats registered; skipped hourly report.")
+        logger.warning("No managed chats registered; skipped 8-hour report.")
         return
 
     text = _build_time_message(datetime.now(tz=BEIJING_TZ))
@@ -41,7 +48,7 @@ async def hourly_time_report(context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
             await context.bot.send_message(chat_id=chat_id, text=text)
         except (BadRequest, Forbidden, TelegramError):
-            logger.exception("Failed to send hourly report to chat %s", chat_id)
+            logger.exception("Failed to send 8-hour report to chat %s", chat_id)
 
 
 async def send_startup_notice(application: Application) -> None:
@@ -59,7 +66,7 @@ async def send_startup_notice(application: Application) -> None:
             logger.exception("Failed to send restart notice to chat %s", chat_id)
 
 
-def register_hourly_job(application: Application) -> None:
+def register_eight_hour_job(application: Application) -> None:
     if application.job_queue is None:
         logger.error(
             "Job queue unavailable. Install dependencies with python-telegram-bot[job-queue]."
@@ -67,10 +74,10 @@ def register_hourly_job(application: Application) -> None:
         return
 
     now = datetime.now(tz=BEIJING_TZ)
-    first_delay = _seconds_until_next_hour(now)
+    first_delay = _seconds_until_next_eight_hour_mark(now)
     application.job_queue.run_repeating(
-        hourly_time_report,
-        interval=3600,
+        eight_hour_time_report,
+        interval=28800,
         first=first_delay,
-        name="hourly_beijing_time_report",
+        name="eight_hour_beijing_time_report",
     )

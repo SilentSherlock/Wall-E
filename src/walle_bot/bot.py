@@ -8,7 +8,7 @@ from .config import load_settings
 from .handlers.commands import list_commands, release, start, whoami
 from .logging_setup import configure_logging
 from .services.moderation import ModerationService
-from .services.scheduler import register_hourly_job, send_startup_notice
+from .services.scheduler import register_eight_hour_job, send_startup_notice
 from .services.state import ModerationState
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def create_application(config_path: str = "config/settings.yaml") -> Application
         sorted(settings.monitored_chat_ids),
         len(settings.whitelist_user_ids),
     )
-    register_hourly_job(application)
+    register_eight_hour_job(application)
     return application
 
 
